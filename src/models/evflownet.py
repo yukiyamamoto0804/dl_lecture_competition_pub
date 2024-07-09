@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import torch.nn.functional as F
 from src.models.base import *
 from typing import Dict, Any
 
@@ -11,10 +12,13 @@ class EVFlowNet(nn.Module):
         self._args = args
 
         self.encoder1 = general_conv2d(in_channels = 4, out_channels=_BASE_CHANNELS, do_batch_norm=not self._args.no_batch_norm)
-        self.encoder2 = general_conv2d(in_channels = _BASE_CHANNELS, out_channels=2*_BASE_CHANNELS, do_batch_norm=not self._args.no_batch_norm)
-        self.encoder3 = general_conv2d(in_channels = 2*_BASE_CHANNELS, out_channels=4*_BASE_CHANNELS, do_batch_norm=not self._args.no_batch_norm)
-        self.encoder4 = general_conv2d(in_channels = 4*_BASE_CHANNELS, out_channels=8*_BASE_CHANNELS, do_batch_norm=not self._args.no_batch_norm)
-
+        self.encoder2 = general_conv2d(in_channels = _BASE_CHANNELS, out_channels=_BASE_CHANNELS, strides=1, do_batch_norm=not self._args.no_batch_norm)
+        self.encoder3 = general_conv2d(in_channels = _BASE_CHANNELS, out_channels=2*_BASE_CHANNELS, do_batch_norm=not self._args.no_batch_norm)
+        self.encoder4 = general_conv2d(in_channels = 2*_BASE_CHANNELS, out_channels=2*_BASE_CHANNELS, strides=1, do_batch_norm=not self._args.no_batch_norm)
+        self.encoder5 = general_conv2d(in_channels = 2*_BASE_CHANNELS, out_channels=4*_BASE_CHANNELS, do_batch_norm=not self._args.no_batch_norm)
+        self.encoder6 = general_conv2d(in_channels = 4*_BASE_CHANNELS, out_channels=4*_BASE_CHANNELS, strides=1, do_batch_norm=not self._args.no_batch_norm)
+        self.encoder7 = general_conv2d(in_channels = 4*_BASE_CHANNELS, out_channels=8*_BASE_CHANNELS, do_batch_norm=not self._args.no_batch_norm)
+        self.encoder8 = general_conv2d(in_channels = 8*_BASE_CHANNELS, out_channels=8*_BASE_CHANNELS, strides=1, do_batch_norm=not self._args.no_batch_norm)
         self.resnet_block = nn.Sequential(*[build_resnet_block(8*_BASE_CHANNELS, do_batch_norm=not self._args.no_batch_norm) for i in range(2)])
 
         self.decoder1 = upsample_conv2d_and_predict_flow(in_channels=16*_BASE_CHANNELS,
@@ -32,13 +36,21 @@ class EVFlowNet(nn.Module):
     def forward(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
         # encoder
         skip_connections = {}
-        inputs = self.encoder1(inputs)
+        inputs_res = self.encoder1(inputs)
+        inputs = self.encoder2(inputs_res)
+        inputs = F.relu(inputs + inputs_res)
         skip_connections['skip0'] = inputs.clone()
-        inputs = self.encoder2(inputs)
+        inputs_res = self.encoder3(inputs)
+        inputs = self.encoder4(inputs_res)
+        inputs = F.relu(inputs + inputs_res)
         skip_connections['skip1'] = inputs.clone()
-        inputs = self.encoder3(inputs)
+        inputs_res = self.encoder5(inputs)
+        inputs = self.encoder6(inputs_res)
+        inputs = F.relu(inputs + inputs_res)
         skip_connections['skip2'] = inputs.clone()
-        inputs = self.encoder4(inputs)
+        inputs_res = self.encoder7(inputs)
+        inputs = self.encoder8(inputs_res)
+        inputs = F.relu(inputs + inputs_res)
         skip_connections['skip3'] = inputs.clone()
 
         # transition

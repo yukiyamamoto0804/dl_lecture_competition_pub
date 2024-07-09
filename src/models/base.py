@@ -5,7 +5,7 @@ class build_resnet_block(nn.Module):
     """
     a resnet block which includes two general_conv2d
     """
-    def __init__(self, channels, layers=2, do_batch_norm=False):
+    def __init__(self, channels, layers=1, do_batch_norm=False):
         super(build_resnet_block,self).__init__()
         self._channels = channels
         self._layers = layers
